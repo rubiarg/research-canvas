@@ -71,6 +71,42 @@ export async function saveFile(state: SerializedState): Promise<void> {
 }
 
 /**
+ * Open a .md file and return its text content.
+ */
+export async function loadMarkdownFile(): Promise<string | null> {
+  if ('showOpenFilePicker' in window) {
+    try {
+      const w = window as unknown as WindowWithFilePicker
+      const [handle] = await w.showOpenFilePicker({
+        types: [{ description: 'Markdown File', accept: { 'text/markdown': ['.md'] } }],
+        multiple: false,
+      })
+      const file = await handle!.getFile()
+      return file.text()
+    } catch (err) {
+      if ((err as Error).name === 'AbortError') return null
+      console.error('Markdown open error:', err)
+      return null
+    }
+  }
+
+  return new Promise((resolve) => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.md'
+    input.onchange = async () => {
+      const file = input.files?.[0]
+      if (!file) { resolve(null); return }
+      try { resolve(await file.text()) } catch { resolve(null) }
+    }
+    input.oncancel = () => resolve(null)
+    document.body.appendChild(input)
+    input.click()
+    document.body.removeChild(input)
+  })
+}
+
+/**
  * Load a .rcvs file and return the parsed state.
  * Uses the File System Access API if available, otherwise falls back to file input.
  */

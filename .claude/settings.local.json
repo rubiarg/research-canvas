@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm create:*)",
+      "Bash(npm install:*)",
+      "Bash(mkdir -p \"/Users/rubiarg/Projects/Side projects/research-blocks/src\")",
+      "Bash(mv tmp/* .)",
+      "Bash(mv tmp/.* .)",
+      "Bash(rmdir tmp:*)",
+      "Bash(cp tmp/tsconfig*.json .)",
+      "Bash(cp tmp/vite.config.ts .)",
+      "Bash(cp tmp/.gitignore .)",
+      "Bash(cp -r tmp/src/. src/)",
+      "Bash(rm -rf tmp)",
+      "Bash(npm pkg:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run:*)",
+      "Bash(node -e \"require\\(''''vite''''\\)\")",
+      "Bash(node -e \"import\\(''''vite''''\\).then\\(v => console.log\\(v.version\\)\\)\")",
+      "Bash(find '/Users/rubiarg/Projects/Side projects/research-blocks/node_modules' -name package.json -path */@types/node/package.json)",
+      "Bash(tsc --version)",
+      "Bash(node_modules/.bin/tsc --version)",
+      "Bash(\"/Users/rubiarg/Projects/Side projects/research-blocks/node_modules/.bin/tsc\" --version)",
+      "Bash(node -e \"console.log\\(process.arch\\)\")",
+      "Bash(node_modules/.bin/tsc -b)",
+      "Bash(zip -r research-canvas-v1.0.zip research-blocks --exclude \"*/node_modules/*\" --exclude \"*/.git/*\" --exclude \"*/dist/*\" --exclude \"*/.DS_Store\")",
+      "Bash(node -e \"const l = require\\(''lucide-react''\\); console.log\\(''FileDown'' in l, ''FileUp'' in l\\)\")"
+    ]
+  }
+}
