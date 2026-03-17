@@ -1,6 +1,7 @@
 import { useStore } from '@/store/index.ts'
 import type { ConnectionType } from '@/types/connection.ts'
 import { Trash2 } from 'lucide-react'
+import { defaultLabel } from '@/canvas/ConnectionLayer.tsx'
 
 interface ConnectionEditorProps {
   connectionId: string
@@ -94,12 +95,21 @@ export function ConnectionEditor({ connectionId }: ConnectionEditorProps) {
 
       {/* Label */}
       <div>
-        <label className={labelClass}>Label</label>
+        <div className="flex items-center justify-between mb-1">
+          <label className={labelClass} style={{ marginBottom: 0 }}>Description</label>
+          <button
+            onClick={() => updateConnection(connectionId, { label: defaultLabel(connection.type) })}
+            className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+            title="Reset to default label"
+          >
+            Default
+          </button>
+        </div>
         <input
           className={inputClass}
           value={connection.label}
           onChange={(e) => updateConnection(connectionId, { label: e.target.value })}
-          placeholder="Connection label..."
+          placeholder="Connection description..."
         />
       </div>
 

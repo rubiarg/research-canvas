@@ -17,6 +17,19 @@ interface Point {
   y: number
 }
 
+type Edge = 'right' | 'left' | 'bottom' | 'top'
+
+const CONNECTION_TYPE_LABELS: Record<ConnectionType, string> = {
+  'dependency': 'Dependency',
+  'contribution-flow': 'Contribution Flow',
+  'parallel-data': 'Parallel Data',
+  'conceptual-link': 'Conceptual Link',
+}
+
+export function defaultLabel(type: ConnectionType): string {
+  return CONNECTION_TYPE_LABELS[type] ?? type
+}
+
 function getBlockCentre(block: Block): Point {
   return {
     x: block.position.x + block.size.width / 2,
@@ -27,26 +40,61 @@ function getBlockCentre(block: Block): Point {
 function getConnectionEndpoints(
   source: Block,
   target: Block
-): { from: Point; to: Point } {
+): { from: Point; to: Point; fromEdge: Edge; toEdge: Edge } {
   const sc = getBlockCentre(source)
   const tc = getBlockCentre(target)
   const dx = tc.x - sc.x
   const dy = tc.y - sc.y
-  const fromX = sc.x + (Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? source.size.width / 2 : -source.size.width / 2) : 0)
-  const fromY = sc.y + (Math.abs(dy) >= Math.abs(dx) ? (dy > 0 ? source.size.height / 2 : -source.size.height / 2) : 0)
-  const toX = tc.x + (Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? -target.size.width / 2 : target.size.width / 2) : 0)
-  const toY = tc.y + (Math.abs(dy) >= Math.abs(dx) ? (dy > 0 ? -target.size.height / 2 : target.size.height / 2) : 0)
-  return { from: { x: fromX, y: fromY }, to: { x: toX, y: toY } }
+
+  // Determine which edges to connect based on dominant direction
+  let fromEdge: Edge, toEdge: Edge
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    fromEdge = dx >= 0 ? 'right' : 'left'
+    toEdge   = dx >= 0 ? 'left'  : 'right'
+  } else {
+    fromEdge = dy > 0 ? 'bottom' : 'top'
+    toEdge   = dy > 0 ? 'top'    : 'bottom'
+  }
+
+  const from: Point = {
+    x: sc.x + (fromEdge === 'right' ? source.size.width / 2 : fromEdge === 'left' ? -source.size.width / 2 : 0),
+    y: sc.y + (fromEdge === 'bottom' ? source.size.height / 2 : fromEdge === 'top' ? -source.size.height / 2 : 0),
+  }
+  const to: Point = {
+    x: tc.x + (toEdge === 'right' ? target.size.width / 2 : toEdge === 'left' ? -target.size.width / 2 : 0),
+    y: tc.y + (toEdge === 'bottom' ? target.size.height / 2 : toEdge === 'top' ? -target.size.height / 2 : 0),
+  }
+
+  return { from, to, fromEdge, toEdge }
 }
 
-function computePath(from: Point, to: Point): string {
+function edgeNormal(edge: Edge): Point {
+  switch (edge) {
+    case 'right':  return { x: 1,  y: 0 }
+    case 'left':   return { x: -1, y: 0 }
+    case 'bottom': return { x: 0,  y: 1 }
+    case 'top':    return { x: 0,  y: -1 }
+  }
+}
+
+// Compute a cubic bezier using edge normals for control points.
+// This ensures arrows always exit/enter blocks cleanly regardless of angle.
+function computePath(from: Point, to: Point, fromEdge: Edge, toEdge: Edge): string {
   const dx = to.x - from.x
   const dy = to.y - from.y
-  const cpOffset = Math.max(Math.abs(dx), Math.abs(dy)) * 0.4
-  const cp1x = from.x + (Math.abs(dx) > Math.abs(dy) ? cpOffset : 0)
-  const cp1y = from.y + (Math.abs(dy) >= Math.abs(dx) ? cpOffset : 0)
-  const cp2x = to.x - (Math.abs(dx) > Math.abs(dy) ? cpOffset : 0)
-  const cp2y = to.y - (Math.abs(dy) >= Math.abs(dx) ? cpOffset : 0)
+  const dist = Math.sqrt(dx * dx + dy * dy)
+  // Minimum 60px offset to prevent curves that loop back inside blocks
+  const cpLen = Math.max(60, dist * 0.45)
+
+  const fn = edgeNormal(fromEdge)
+  const tn = edgeNormal(toEdge)
+
+  const cp1x = from.x + fn.x * cpLen
+  const cp1y = from.y + fn.y * cpLen
+  // toEdge normal points INTO the block; we want to pull control point OUT
+  const cp2x = to.x + tn.x * cpLen
+  const cp2y = to.y + tn.y * cpLen
+
   return `M ${from.x} ${from.y} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${to.x} ${to.y}`
 }
 
@@ -70,8 +118,8 @@ function ConnectionPath({
   const target = blocks[connection.targetId]
   if (!source || !target) return null
 
-  const { from, to } = getConnectionEndpoints(source, target)
-  const pathD = computePath(from, to)
+  const { from, to, fromEdge, toEdge } = getConnectionEndpoints(source, target)
+  const pathD = computePath(from, to, fromEdge, toEdge)
   const mid = { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 }
   const screenMid = {
     x: mid.x * transform.scale + transform.x,
@@ -79,20 +127,20 @@ function ConnectionPath({
   }
 
   const connTypeStyles: Record<string, { stroke: string; strokeWidth: number; strokeDasharray: string; markerEnd: string }> = {
-    dependency: { stroke: '#64748b', strokeWidth: 1.5, strokeDasharray: '6 4', markerEnd: 'url(#arrow-open)' },
+    dependency:          { stroke: '#64748b', strokeWidth: 1.5, strokeDasharray: '6 4',  markerEnd: 'url(#arrow-open)' },
     'contribution-flow': { stroke: '#6366f1', strokeWidth: 2.5, strokeDasharray: 'none', markerEnd: 'url(#arrow-filled)' },
-    'parallel-data': { stroke: '#06b6d4', strokeWidth: 1.5, strokeDasharray: '2 4', markerEnd: 'none' },
-    'conceptual-link': { stroke: '#94a3b8', strokeWidth: 1, strokeDasharray: '8 4', markerEnd: 'none' },
+    'parallel-data':     { stroke: '#06b6d4', strokeWidth: 1.5, strokeDasharray: '2 4',  markerEnd: 'none' },
+    'conceptual-link':   { stroke: '#94a3b8', strokeWidth: 1,   strokeDasharray: '8 4',  markerEnd: 'none' },
   }
 
   const style = connTypeStyles[connection.type] ?? connTypeStyles['dependency']!
-  const stroke = isSelected ? '#f59e0b' : isHighlighted ? '#f59e0b' : style.stroke
+  const stroke = isSelected || isHighlighted ? '#f59e0b' : style.stroke
   const strokeWidth = isSelected ? style.strokeWidth + 1 : style.strokeWidth
   const opacity = dimmed ? 0.2 : 1
 
   return (
     <g opacity={opacity}>
-      {/* Invisible hit area — pointer-events: stroke allows only path hits */}
+      {/* Invisible wide hit area */}
       <path
         d={pathD}
         stroke="transparent"
@@ -129,10 +177,10 @@ function ConnectionPath({
 }
 
 const CONNECTION_TYPE_OPTIONS: { value: ConnectionType; label: string }[] = [
-  { value: 'dependency', label: 'Dependency' },
+  { value: 'dependency',        label: 'Dependency' },
   { value: 'contribution-flow', label: 'Contribution Flow' },
-  { value: 'parallel-data', label: 'Parallel Data' },
-  { value: 'conceptual-link', label: 'Conceptual Link' },
+  { value: 'parallel-data',     label: 'Parallel Data' },
+  { value: 'conceptual-link',   label: 'Conceptual Link' },
 ]
 
 export function ConnectionLayer({ transform, stageWidth, stageHeight, rubberbandPos }: ConnectionLayerProps) {
@@ -186,6 +234,11 @@ export function ConnectionLayer({ transform, stageWidth, stageHeight, rubberband
     if (e.key === 'Enter') { e.preventDefault(); commitEdit() }
     if (e.key === 'Escape') { setEditingConnId(null) }
   }, [commitEdit])
+
+  // Keep editType in sync so the Default button produces the right label
+  const handleTypeChange = (t: ConnectionType) => {
+    setEditType(t)
+  }
 
   const traceResult = useMemo(() => {
     if (!tracingSourceId || activeTraces.length === 0) return null
@@ -274,7 +327,7 @@ export function ConnectionLayer({ transform, stageWidth, stageHeight, rubberband
             border: '1.5px solid #6366f1',
             borderRadius: '8px',
             padding: '10px 12px',
-            minWidth: '220px',
+            minWidth: '240px',
             boxShadow: '0 4px 24px rgba(0,0,0,0.6)',
             display: 'flex',
             flexDirection: 'column',
@@ -284,20 +337,34 @@ export function ConnectionLayer({ transform, stageWidth, stageHeight, rubberband
         >
           <div style={{ fontSize: '11px', fontWeight: 600, color: '#e2e8f0' }}>Edit Connection</div>
 
+          {/* Label with Default button */}
           <div>
-            <div style={{ fontSize: '9px', color: '#64748b', marginBottom: '3px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Label</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '3px' }}>
+              <span style={{ fontSize: '9px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Description</span>
+              <button
+                onClick={() => setEditLabel(defaultLabel(editType))}
+                style={{ fontSize: '9px', color: '#6366f1', cursor: 'pointer', background: 'none', border: 'none', padding: '0 2px' }}
+                title="Reset to default label"
+              >
+                Default
+              </button>
+            </div>
             <input
               ref={labelInputRef}
               value={editLabel}
               onChange={(e) => setEditLabel(e.target.value)}
-              placeholder="Connection label…"
+              placeholder="Connection description…"
               className={inputCls}
             />
           </div>
 
           <div>
             <div style={{ fontSize: '9px', color: '#64748b', marginBottom: '3px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Type</div>
-            <select value={editType} onChange={(e) => setEditType(e.target.value as ConnectionType)} className={inputCls}>
+            <select
+              value={editType}
+              onChange={(e) => handleTypeChange(e.target.value as ConnectionType)}
+              className={inputCls}
+            >
               {CONNECTION_TYPE_OPTIONS.map((ct) => (
                 <option key={ct.value} value={ct.value}>{ct.label}</option>
               ))}
