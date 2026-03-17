@@ -1,6 +1,6 @@
 import { useStore } from '@/store/index.ts'
 import type { ConnectionType } from '@/types/connection.ts'
-import { Trash2 } from 'lucide-react'
+import { Trash2, ArrowLeftRight } from 'lucide-react'
 import { defaultLabel } from '@/canvas/ConnectionLayer.tsx'
 
 interface ConnectionEditorProps {
@@ -55,7 +55,17 @@ export function ConnectionEditor({ connectionId }: ConnectionEditorProps) {
     <div className="p-4 space-y-4">
       {/* Source → Target */}
       <div className="bg-gray-800 rounded p-3">
-        <div className="text-xs text-gray-400 mb-1">Connection</div>
+        <div className="flex items-center justify-between mb-1">
+          <div className="text-xs text-gray-400">Connection</div>
+          <button
+            onClick={() => updateConnection(connectionId, { sourceId: connection.targetId, targetId: connection.sourceId })}
+            className="flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+            title="Reverse direction"
+          >
+            <ArrowLeftRight size={11} />
+            Reverse
+          </button>
+        </div>
         <div className="flex items-center gap-2 text-sm">
           <span className="text-gray-200 truncate">{sourceBlock?.title ?? connection.sourceId}</span>
           <span className="text-gray-500">→</span>

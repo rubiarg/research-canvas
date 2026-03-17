@@ -141,6 +141,19 @@ export function Toolbar() {
 
         <div className="flex-1" />
 
+        {/* Save — always visible */}
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded transition-colors"
+          title="Save .rcvs file"
+        >
+          <Save size={13} />
+          {saving ? 'Saving…' : 'Save'}
+        </button>
+
+        <div className="w-px h-5 bg-gray-700 mx-1" />
+
         {/* Sidebar toggle — always visible */}
         <button
           onClick={toggleSidebar}

@@ -372,7 +372,16 @@ export function ConnectionLayer({ transform, stageWidth, stageHeight, rubberband
           </div>
 
           <div>
-            <div style={{ fontSize: '9px', color: '#64748b', marginBottom: '3px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>From → To</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '3px' }}>
+              <span style={{ fontSize: '9px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>From → To</span>
+              <button
+                onClick={() => { const s = editSourceId; setEditSourceId(editTargetId); setEditTargetId(s) }}
+                style={{ fontSize: '9px', color: '#6366f1', cursor: 'pointer', background: 'none', border: 'none', padding: '0 2px' }}
+                title="Reverse direction"
+              >
+                ⇄ Reverse
+              </button>
+            </div>
             <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
               <select value={editSourceId} onChange={(e) => setEditSourceId(e.target.value)}
                 className={inputCls} style={{ flex: 1, minWidth: 0 }}>
